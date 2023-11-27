@@ -1,0 +1,118 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  EnvironmentName:
+    Description: This will be the Environment Name
+    Type: String
+    Default: "DE-Extract"
+  VpcCIDR:
+    Description: The IPv4 address space for the VPC hosting the scenario challenge.
+    Type: String
+    Default: "192.168.0.0/16"
+  DataCenterPublicSubnetCIDR:
+    Description: The IPv4 address space for the publicly accessible portion of the VPC.
+    Type: String
+    Default: "192.168.10.0/24"
+Resources:
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostNames: true
+      Tags:
+         - Key: Name
+           Value : !Ref EnvironmentName
+  
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+
+  InternetGatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGateway: !Ref InternetGateway
+      VPC: !Ref VPC
+
+  DataCenterPublicSubnet:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs !Ref 'AWS::Region']
+      CidrBlock: !Ref DataCenterPublicSubnetCIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "DE-Extract Data Center Subnet"
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: "DE-Extract Public Routes"
+
+  DefaultPublicRoute:
+    Type: "AWS::EC2::Route"
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId : !Ref InternetGateway
+
+  DataCenterPublicSubnetRouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref DataCenterPublicSubnet
+
+  WindowsInstanceSG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: "DE-Extract-WindowsInstanceSG"
+      GroupDescription: "Security group for Windows instance"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: '0.0.0.0/0'
+      Tags:
+        - Key: Name
+          Value: "DE-Extract-WindowsInstanceSG"
+
+  FileServerSG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: "DE-Extract-FileServerSG"
+      GroupDescription: "Security group for file server"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Sub '${DataCenterPublicSubnetCIDR}'
+      Tags:
+        - Key: Name
+          Value: "DE-Extract-FileServerSG"
+
+  FileGatewaySG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: "DE-Extract-FileGatewaySG"
+      GroupDescription: "Security group for file gateway"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 1
+          ToPort: 65534
+          CidrIp: !Ref VpcCIDR
+      Tags:
+        - Key: Name
+          Value: "DE-Extract-FileGatewaySG"   
+
