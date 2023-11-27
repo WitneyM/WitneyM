@@ -1,0 +1,73 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+
+  VPC:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID where the instance will be launched
+
+  Subnet:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet ID within the VPC for the instance
+
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: List of Security Group IDs for the instance
+
+  LatestWindowsAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
+    Description: The latest Windows AMI ID
+
+Resources:
+  WindowsInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: WindowsInstanceRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      DeletionPolicy: Delete
+
+  WindowsInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref WindowsInstanceRole
+
+  WindowsInstanceRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "Windows-client-${AWS::StackName}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:Get*"
+              - "s3:List*"
+            Resource: "*"
+      Roles:
+        - !Ref WindowsInstanceRole
+      DeletionPolicy: Delete
+
+  WindowsInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestWindowsAmiId
+      KeyName: !Ref KeyName
+      InstanceType: t2.micro
+      SecurityGroupIds: !Ref SecurityGroupIds
+      SubnetId: !Ref Subnet
+      IamInstanceProfile: !Ref WindowsInstanceProfile
+      Tags:
+        - Key: Name
+          Value: "DE-Extract-Windows-Instance"
