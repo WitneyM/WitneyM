@@ -2,15 +2,15 @@
 AWSTemplateFormatVersion: 2010-09-09
 Parameters:
   EnvironmentName:
-    Description: This will be the Environment Name
+    Description: Environment Name
     Type: String
     Default: "DE-Extract"
   VpcCIDR:
-    Description: The IPv4 address space for the VPC hosting the scenario challenge.
+    Description: The IPv4 address range (CIDR notation) for this VPC
     Type: String
     Default: "192.168.0.0/16"
   DataCenterPublicSubnetCIDR:
-    Description: The IPv4 address space for the publicly accessible portion of the VPC.
+    Description: The IPv4 address range (CIDR notation) for this VPC
     Type: String
     Default: "192.168.10.0/24"
 Resources:
